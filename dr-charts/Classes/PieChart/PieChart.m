@@ -101,7 +101,8 @@
     startAngle = 0;
 
     for (PieChartDataRenderer *data in self.dataArray) {
-        [self drawPathWithValue:data.value.floatValue color:data.color];
+        NSInteger index = [self.dataArray indexOfObject:data];
+        [self drawPathWithValue:data.value.floatValue color:data.color index:index];
     }
     [self addSubview:self.pieView];
     
@@ -111,7 +112,7 @@
 }
 
 #pragma mark Draw Shape Layer
-- (void)drawPathWithValue:(CGFloat)value color:(UIColor *)color{
+- (void)drawPathWithValue:(CGFloat)value color:(UIColor *)color index:(NSInteger)index{
     CAShapeLayer *shapeLayer = [[CAShapeLayer alloc] init];
     [shapeLayer setPath:[[self drawArcWithValue:value] CGPath]];
     [shapeLayer setStrokeColor:color.CGColor];
@@ -126,9 +127,24 @@
     [pathAnimation setFromValue:[NSNumber numberWithFloat:0.0f]];
     [pathAnimation setToValue:[NSNumber numberWithFloat:1.0f]];
     
+    // fill color
     CABasicAnimation *fillColorAnimation = [CABasicAnimation animationWithKeyPath:@"fillColor"];
-    [fillColorAnimation setFromValue:(id)[[UIColor clearColor] CGColor]];
-    [fillColorAnimation setToValue:(id)[color CGColor]];
+    {
+        [fillColorAnimation setFromValue:(id)[[UIColor clearColor] CGColor]];
+        UIColor *colorFromDataSource = [self.dataSource textForegroundColorWithIndex:index];
+        if (colorFromDataSource) {
+            CGFloat hue, saturation, brightness, alpha;
+            BOOL ok = [colorFromDataSource getHue:&hue saturation:&saturation brightness:&brightness alpha:&alpha];
+            if (!ok) {
+                // handle error
+            }
+            UIColor *newColor = [UIColor colorWithHue:hue saturation:saturation brightness:brightness + 0.3 alpha:alpha];
+            [fillColorAnimation setToValue:(id)[newColor CGColor]];
+        }
+        else {
+            [fillColorAnimation setToValue:(id)[color CGColor]];
+        }
+    }
     
     CAAnimationGroup *group = [[CAAnimationGroup alloc] init];
     [group setAnimations:[NSArray arrayWithObjects:pathAnimation,fillColorAnimation, nil]];
@@ -138,22 +154,40 @@
     [group setBeginTime:CACurrentMediaTime()];
     [group setTimingFunction:[CAMediaTimingFunction functionWithName:kCAMediaTimingFunctionEaseOut]];
     
-    NSString *text = [NSString stringWithFormat:@"%0.2f%%",(value/self.totalCount.floatValue)*100];
+    NSString *text = [NSString stringWithFormat:@"%0.2f%%\n(%@)",(value/self.totalCount.floatValue)*100,@(value)];
     CGRect layerRect = CGPathGetBoundingBox(shapeLayer.path);
     NSAttributedString *attrString = [LegendView getAttributedString:text withFont:self.textFont];
     CGSize size = [attrString boundingRectWithSize:CGSizeMake(WIDTH(self), MAXFLOAT) options:NSStringDrawingUsesFontLeading|NSStringDrawingUsesLineFragmentOrigin context:nil].size;
 
-    if (size.height < layerRect.size.height/2 && size.width < layerRect.size.width/2 && self.showValueOnPieSlice) {
+    if (/*size.height < layerRect.size.height/2 && size.width < layerRect.size.width/2 &&*/ self.showValueOnPieSlice) {
         CGRect frame = CGRectMake(layerRect.origin.x + layerRect.size.width/2 - size.width/2, layerRect.origin.y + layerRect.size.height/2 - size.height/2, size.width, size.height);
         
         CATextLayer *textLayer = [[CATextLayer alloc] init];
-        [textLayer setFont:CFBridgingRetain(self.textFont.fontName)];
+        UIFont *fontFromDataSource = [self.dataSource pieTextForegroundFontWithIndex:index];
+        if (fontFromDataSource) {
+            [textLayer setFont:CFBridgingRetain(fontFromDataSource.fontName)];
+        }
+        else {
+            [textLayer setFont:CFBridgingRetain(self.textFont.fontName)];
+        }
         [textLayer setFontSize:self.textFontSize];
         [textLayer setFrame:frame];
         [textLayer setString:[NSString stringWithFormat:@"%@",text]];
         [textLayer setAlignmentMode:kCAAlignmentCenter];
         [textLayer setBackgroundColor:[[UIColor clearColor] CGColor]];
-        [textLayer setForegroundColor:[[UIColor whiteColor] CGColor]];
+        UIColor *colorFromDataSource = [self.dataSource textForegroundColorWithIndex:index];
+        if (colorFromDataSource) {
+            CGFloat hue, saturation, brightness, alpha;
+            BOOL ok = [colorFromDataSource getHue:&hue saturation:&saturation brightness:&brightness alpha:&alpha];
+            if (!ok) {
+                // handle error
+            }
+            UIColor *newColor = [UIColor colorWithHue:hue saturation:saturation brightness:brightness - 0.3 alpha:alpha];
+            [textLayer setForegroundColor:[newColor CGColor]];
+        }
+        else {
+            [textLayer setForegroundColor:[[UIColor whiteColor] CGColor]];
+        }
         [textLayer setShouldRasterize:YES];
         [textLayer setRasterizationScale:[[UIScreen mainScreen] scale]];
         [textLayer setContentsScale:[[UIScreen mainScreen] scale]];
@@ -323,6 +357,11 @@
     [self.legendView setLegendViewType:self.legendViewType];
     [self.legendView createLegend];
     [self addSubview:self.legendView];
+    
+    self.legendView.frame = CGRectMake((self.bounds.size.width - self.legendView.maxWidth) / 2.0,
+                                       self.legendView.frame.origin.y,
+                                       self.legendView.frame.size.width,
+                                       self.legendView.frame.size.height);
 }
 
 #pragma mark Reload Chart

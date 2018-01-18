@@ -35,7 +35,8 @@
 @optional
 - (UIView *)customViewForPieChartTouchWithValue:(NSNumber *)value;
 //Set Custom View for touch on each item in a Pie Chart
-
+- (UIColor *)textForegroundColorWithIndex:(NSInteger)index;
+- (UIFont *)pieTextForegroundFontWithIndex:(NSInteger)index;
 @end
 
 @interface PieChart : UIView

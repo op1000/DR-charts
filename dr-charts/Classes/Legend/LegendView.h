@@ -22,6 +22,7 @@ typedef enum{
 @property (nonatomic) LegendType legendViewType;
 @property (nonatomic, strong) UIColor *textColor;
 @property (nonatomic, strong) UIFont *font;
+@property (nonatomic, assign) CGFloat maxWidth;
 
 - (void)createLegend;
 

@@ -21,6 +21,8 @@
 }
 
 - (void)createLegend{
+    self.maxWidth = 0.0;
+    
     CGFloat height = INNER_PADDING;
     if (self.legendViewType == LegendTypeVertical) {
         for (LegendDataRenderer *legendData in self.legendArray) {
@@ -80,6 +82,10 @@
                 [label setAttributedText:attrString];
                 [label setFrame:CGRectMake(AFTER(view) + OFFSET_PADDING, height, size.width, size.height)];
                 [self addSubview:label];
+                
+                if (self.maxWidth < label.frame.origin.x + label.frame.size.width) {
+                    self.maxWidth = label.frame.origin.x + label.frame.size.width;
+                }
                 
                 x = width;
             }
